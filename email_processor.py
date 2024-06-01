@@ -6,16 +6,22 @@ from email.mime.text import MIMEText
 import schedule
 import time
 
-# Email account credentials
-EMAIL_ADDRESS = 'rajpathak.er@gmail.com'
-EMAIL_PASSWORD = 'dhro eqpo ofbz zudn'
-SMTP_SERVER = 'imap.gmail.com'
-SMTP_PORT = 993
+# Email account credentials for reading
+READ_EMAIL_ADDRESS = 'your_read_email@gmail.com'
+READ_EMAIL_PASSWORD = 'your_read_email_password'
+IMAP_SERVER = 'imap.gmail.com'
+IMAP_PORT = 993
+
+# Email account credentials for sending
+SEND_EMAIL_ADDRESS = 'your_send_email@gmail.com'
+SEND_EMAIL_PASSWORD = 'your_send_email_password'
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
 
 # Function to read emails from the specified sender and subject
 def read_emails():
-    mail = imaplib.IMAP4_SSL(SMTP_SERVER, SMTP_PORT)
-    mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
+    mail.login(READ_EMAIL_ADDRESS, READ_EMAIL_PASSWORD)
     mail.select('inbox')
 
     # Search for emails from flow@shopify.com with the subject containing "Order Data V2O Sports Order #"
@@ -33,10 +39,13 @@ def read_emails():
             for part in msg.walk():
                 if part.get_content_type() == "text/plain":
                     body = part.get_payload(decode=True).decode()
-                    if "Prescription type: Prescription - Distance - Single Vision" in body:
-                        # Use your own email for testing
-                        customer_email = 'rajpathak.freelancer@gmail.com'
-                        orders_to_process.append((order_number, customer_email))
+                    if "varifocals" in body or "bifocals" in body:
+                        # Extract customer email
+                        for line in body.splitlines():
+                            if "Customer Email:" in line:
+                                customer_email = line.split(":")[-1].strip()
+                                orders_to_process.append((order_number, customer_email))
+                                break
 
     mail.logout()
     return orders_to_process
@@ -44,9 +53,9 @@ def read_emails():
 # Function to send email
 def send_email(order_number, customer_email):
     msg = MIMEMultipart()
-    msg['From'] = EMAIL_ADDRESS
+    msg['From'] = SEND_EMAIL_ADDRESS
     msg['To'] = customer_email
-    msg['Cc'] = EMAIL_ADDRESS
+    msg['Cc'] = SEND_EMAIL_ADDRESS
     msg['Subject'] = f"Regarding your Order #{order_number}"
 
     body = """\
@@ -55,16 +64,15 @@ def send_email(order_number, customer_email):
     Please don’t hesitate with any questions and we look forward to your reply.
     Best regards,
     Tom
-    Admin@v2ogroup.com
     """
     msg.attach(MIMEText(body, 'plain'))
 
     # Send email
-    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
     server.starttls()
-    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    server.login(SEND_EMAIL_ADDRESS, SEND_EMAIL_PASSWORD)
     text = msg.as_string()
-    server.sendmail(EMAIL_ADDRESS, [customer_email, EMAIL_ADDRESS], text)
+    server.sendmail(SEND_EMAIL_ADDRESS, [customer_email, SEND_EMAIL_ADDRESS], text)
     server.quit()
 
 # Function to process new orders and send emails
